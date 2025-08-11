@@ -1,0 +1,9 @@
+apiVersion: v2
+description: A Helm chart for observability infrastructure including S3 bucket for Thanos object storage
+keywords:
+- pattern
+- observability
+- thanos
+- s3
+name: observability
+version: 0.0.1

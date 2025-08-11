@@ -1,0 +1,115 @@
+---
+# ACK S3 Controller for creating and managing S3 buckets
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ack-s3-system
+  labels:
+    app.kubernetes.io/name: ack-s3-controller
+    app.kubernetes.io/part-of: observability
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ack-s3-controller
+  namespace: ack-s3-system
+  annotations:
+    # IAM role should be configured externally with proper S3 permissions
+    eks.amazonaws.com/role-arn: {{ .Values.aws.iamRoleArn | default "arn:aws:iam::ACCOUNT-ID:role/ack-s3-controller" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ack-s3-controller
+rules:
+- apiGroups:
+  - s3.services.k8s.aws
+  resources:
+  - buckets
+  - buckets/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ack-s3-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ack-s3-controller
+subjects:
+- kind: ServiceAccount
+  name: ack-s3-controller
+  namespace: ack-s3-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ack-s3-controller
+  namespace: ack-s3-system
+  labels:
+    app.kubernetes.io/name: ack-s3-controller
+    app.kubernetes.io/part-of: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ack-s3-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ack-s3-controller
+    spec:
+      serviceAccountName: ack-s3-controller
+      containers:
+      - name: controller
+        image: {{ .Values.aws.s3Controller.image | default "public.ecr.aws/aws-controllers-k8s/s3-controller:v0.1.12" }}
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: AWS_REGION
+          value: {{ .Values.global.aws.region | default "us-east-1" }}
+        - name: ACK_SYSTEM_NAMESPACE
+          value: ack-s3-system
+        - name: ACK_WATCH_NAMESPACE
+          value: ""
+        - name: ACK_LOG_LEVEL
+          value: {{ .Values.aws.s3Controller.logLevel | default "info" }}
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true

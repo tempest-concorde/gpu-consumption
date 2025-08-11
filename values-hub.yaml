@@ -7,12 +7,18 @@ clusterGroup:
     - golang-external-secrets
     - config-demo
     - hello-world
+    - ack-system
   subscriptions:
     acm:
       name: advanced-cluster-management
       namespace: open-cluster-management
-      channel: release-2.11
-      # csv: advanced-cluster-management.v2.6.1
+
+    acks3:
+      name: ack-s3-controller
+      namespace: ack-system
+      channel: alpha
+      version: 1.0.35
+
   projects:
     - hub
     - config-demo

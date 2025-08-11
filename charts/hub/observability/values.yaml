@@ -1,0 +1,25 @@
+---
+global:
+  hubClusterDomain: hub.example.com
+  localCluster: local.example.com
+  pattern: gpu-consumption
+  environment: production
+  aws:
+    region: us-east-1  # Will be automatically detected from cluster metadata
+
+# AWS-specific configuration
+aws:
+  # IAM role ARN for ACK S3 controller (should be configured with proper S3 permissions)
+  iamRoleArn: ""  # Will be set via values override or pattern configuration
+  s3Controller:
+    image: "public.ecr.aws/aws-controllers-k8s/s3-controller:v0.1.12"
+    logLevel: "info"
+
+# Thanos object storage configuration
+thanos:
+  objectStorage:
+    namespace: "open-cluster-management-observability"
+    s3:
+      # Bucket name will be generated as: {pattern}-thanos-object-storage
+      # Can be overridden if needed
+      bucketName: ""

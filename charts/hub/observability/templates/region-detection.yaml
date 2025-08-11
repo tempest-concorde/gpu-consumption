@@ -1,0 +1,149 @@
+---
+# ServiceAccount for region detection job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: region-detector
+  namespace: {{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }}
+  labels:
+    app.kubernetes.io/name: region-detector
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: region-detection
+---
+# ClusterRole for reading cluster metadata
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: region-detector
+  labels:
+    app.kubernetes.io/name: region-detector
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: region-detection
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "create", "update", "patch"]
+---
+# ClusterRoleBinding for region detection
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: region-detector
+  labels:
+    app.kubernetes.io/name: region-detector
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: region-detection
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: region-detector
+subjects:
+- kind: ServiceAccount
+  name: region-detector
+  namespace: {{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }}
+---
+# Job to detect AWS region from cluster metadata
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aws-region-detector
+  namespace: {{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }}
+  labels:
+    app.kubernetes.io/name: region-detector
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: region-detection
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: region-detector
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: region-detection
+    spec:
+      serviceAccountName: region-detector
+      restartPolicy: OnFailure
+      containers:
+      - name: region-detector
+        image: registry.redhat.io/ubi8/ubi-minimal:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -euo pipefail
+          
+          # Install required tools
+          microdnf install -y curl jq
+          
+          # Function to detect region from various sources
+          detect_region() {
+            local region=""
+            
+            # Method 1: Try AWS metadata service (if running on EC2)
+            if curl -s --max-time 2 http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null; then
+              region=$(curl -s --max-time 2 http://169.254.169.254/latest/meta-data/placement/region)
+              echo "Detected region from EC2 metadata: $region"
+              echo "$region"
+              return 0
+            fi
+            
+            # Method 2: Check node labels for topology.kubernetes.io/region
+            kubectl get nodes -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/region}' 2>/dev/null || true
+            if [ -n "$(kubectl get nodes -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/region}' 2>/dev/null)" ]; then
+              region=$(kubectl get nodes -o jsonpath='{.items[0].metadata.labels.topology\.kubernetes\.io/region}')
+              echo "Detected region from node topology label: $region"
+              echo "$region"
+              return 0
+            fi
+            
+            # Method 3: Check node labels for failure-domain.beta.kubernetes.io/region (legacy)
+            if [ -n "$(kubectl get nodes -o jsonpath='{.items[0].metadata.labels.failure-domain\.beta\.kubernetes\.io/region}' 2>/dev/null)" ]; then
+              region=$(kubectl get nodes -o jsonpath='{.items[0].metadata.labels.failure-domain\.beta\.kubernetes\.io/region}')
+              echo "Detected region from legacy node label: $region"
+              echo "$region"
+              return 0
+            fi
+            
+            # Method 4: Try to extract from node provider ID
+            provider_id=$(kubectl get nodes -o jsonpath='{.items[0].spec.providerID}' 2>/dev/null || true)
+            if [[ "$provider_id" =~ aws:///([^/]+)/ ]]; then
+              zone="${BASH_REMATCH[1]}"
+              # Extract region from zone (remove last character)
+              region="${zone%?}"
+              echo "Detected region from provider ID: $region"
+              echo "$region"
+              return 0
+            fi
+            
+            # Default fallback
+            echo "{{ include "observability.aws.region" . }}"
+          }
+          
+          # Detect the region
+          AWS_REGION=$(detect_region)
+          echo "Final detected AWS region: $AWS_REGION"
+          
+          # Create or update ConfigMap with detected region
+          kubectl create configmap aws-region-config \
+            --namespace={{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }} \
+            --from-literal=region="$AWS_REGION" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          echo "AWS region detection completed successfully"
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001

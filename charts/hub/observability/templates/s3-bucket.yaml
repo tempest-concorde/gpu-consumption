@@ -1,0 +1,90 @@
+---
+# S3 Bucket for Thanos object storage used by MCO
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: {{ include "observability.s3.bucketName" . }}
+  namespace: {{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }}
+  labels:
+    app.kubernetes.io/name: thanos-object-storage
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: storage
+spec:
+  name: {{ include "observability.s3.bucketName" . }}
+  # Use the same region as the cluster
+  createBucketConfiguration:
+    locationConstraint: {{ include "observability.aws.region" . }}
+  # Enable versioning for data protection
+  versioning:
+    status: Enabled
+  # Server-side encryption
+  encryptionConfiguration:
+    rules:
+    - applyServerSideEncryptionByDefault:
+        sseAlgorithm: AES256
+      bucketKeyEnabled: true
+  # Lifecycle configuration for cost optimization
+  lifecycleConfiguration:
+    rules:
+    - id: thanos-lifecycle
+      status: Enabled
+      transitions:
+      - days: 30
+        storageClass: STANDARD_IA
+      - days: 90
+        storageClass: GLACIER
+      - days: 365
+        storageClass: DEEP_ARCHIVE
+  # Block public access for security
+  publicAccessBlockConfiguration:
+    blockPublicAcls: true
+    blockPublicPolicy: true
+    ignorePublicAcls: true
+    restrictPublicBuckets: true
+  # Tags for resource management
+  tagging:
+    tagSet:
+    - key: "Purpose"
+      value: "ThanosObjectStorage"
+    - key: "Pattern"
+      value: {{ .Values.global.pattern | default "gpu-consumption" }}
+    - key: "Environment"
+      value: {{ .Values.global.environment | default "production" }}
+    - key: "ManagedBy"
+      value: "ACK"
+---
+# Secret containing S3 bucket information for MCO
+apiVersion: v1
+kind: Secret
+metadata:
+  name: thanos-object-storage
+  namespace: {{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }}
+  labels:
+    app.kubernetes.io/name: thanos-object-storage
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: storage
+type: Opaque
+stringData:
+  thanos.yaml: |
+    type: s3
+    config:
+      bucket: {{ include "observability.s3.bucketName" . }}
+      endpoint: {{ include "observability.s3.endpoint" . }}
+      region: {{ include "observability.aws.region" . }}
+      # Authentication will be handled by IAM roles for service accounts
+      # or EC2 instance profiles
+---
+# ConfigMap with bucket information that can be referenced by other components
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-bucket-config
+  namespace: {{ .Values.thanos.objectStorage.namespace | default "open-cluster-management-observability" }}
+  labels:
+    app.kubernetes.io/name: s3-bucket-config
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: storage
+data:
+  bucket-name: {{ include "observability.s3.bucketName" . }}
+  bucket-region: {{ include "observability.aws.region" . }}
+  bucket-endpoint: {{ include "observability.s3.endpoint" . }}
