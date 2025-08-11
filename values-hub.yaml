@@ -17,7 +17,6 @@ clusterGroup:
       name: ack-s3-controller
       namespace: ack-system
       channel: alpha
-      version: 1.0.35
 
   projects:
     - hub
