@@ -70,5 +70,5 @@ spec:
       type: ManagedClusterConditionAvailable
   clusterSelector:
     matchLabels:
-      cloud: AWS
+      cloud: Amazon
 {{- end }}
