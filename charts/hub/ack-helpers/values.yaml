@@ -10,5 +10,5 @@ secretStore:
   name: vault-backend
   kind: ClusterSecretStore
 
-ack-helpers:
+ackhelpers:
   awssecret: secret/data/global/aws

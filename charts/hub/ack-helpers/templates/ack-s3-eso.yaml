@@ -22,9 +22,9 @@ spec:
   data:
   - secretKey: AWS_ACCESS_KEY_ID
     remoteRef:
-      key: '{{ .Values.ack-helpers.awssecret }}'
+      key: '{{ .Values.ackhelpers.awssecret }}'
       property: aws_access_key_id
   - secretKey: AWS_SECRET_ACCESS_KEY
     remoteRef:
-      key: '{{ .Values.ack-helpers.awssecret }}'
+      key: '{{ .Values.ackhelpers.awssecret }}'
       property: aws_secret_access_key
