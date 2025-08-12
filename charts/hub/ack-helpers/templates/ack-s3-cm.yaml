@@ -32,7 +32,7 @@ spec:
                 ACK_ENABLE_DEVELOPMENT_LOGGING=true
                 ACK_LOG_LEVEL=debug
                 ACK_WATCH_NAMESPACE=
-                AWS_REGION={{ `{{ (index (lookup "v1" "Node" "" "").items 0).metadata.labels "topology.kubernetes.io/region" | default "us-east-1" }}` }}
+                AWS_REGION={{ `{{ index (index (lookup "v1" "Node" "" "").items 0).metadata.labels "topology.kubernetes.io/region" | default "us-east-1" }}` }}
                 AWS_ENDPOINT_URL=
                 ACK_RESOURCE_TAGS=
                 ENABLE_LEADER_ELECTION=true
