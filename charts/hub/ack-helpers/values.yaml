@@ -6,3 +6,9 @@
 global:
   # Set to "AWS" to enable ACK helpers deployment
   clusterPlatform: ""  # Should be set to "AWS" for AWS clusters
+secretStore:
+  name: vault-backend
+  kind: ClusterSecretStore
+
+ack-helpers:
+  awssecret: secret/data/global/aws

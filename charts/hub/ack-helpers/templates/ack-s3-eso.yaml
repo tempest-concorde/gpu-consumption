@@ -1,0 +1,30 @@
+---
+apiVersion: "external-secrets.io/v1beta1"
+kind: ExternalSecret
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  name: ack-s3-secret-eso
+  namespace: openshift-sandboxed-containers-operator
+spec:
+  refreshInterval: 15s
+  secretStoreRef:
+    name: {{ .Values.secretStore.name }}
+    kind: {{ .Values.secretStore.kind }}
+  target:
+    name: ack-s3-user-secrets
+    template:
+      type: Opaque
+      data:
+        config: |
+          AWS_ACCESS_KEY_ID={{ "{{ .AWS_ACCESS_KEY_ID }}" }}
+          AWS_SECRET_ACCESS_KEY={{ "{{ .AWS_ACCESS_KEY_ID }}" }}
+  data:
+  - secretKey: AWS_ACCESS_KEY_ID
+    remoteRef:
+      key: {{ .Values.externalSecrets.vaultSecretPath }}
+      property: aws_access_key_id
+  - secretKey: AWS_SECRET_ACCESS_KEY
+    remoteRef:
+      key: {{ .Values.externalSecrets.vaultSecretPath }}
+      property: aws_secret_access_key
