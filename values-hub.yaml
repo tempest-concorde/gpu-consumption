@@ -78,6 +78,11 @@ clusterGroup:
       namespace: hello-world
       project: hello-world
       path: charts/all/hello-world
+    ack-helpers:
+      name: ack-helpers
+      namespace: ack-system
+      project: hub
+      path: charts/hub/ack-helpers
   imperative:
     # NOTE: We *must* use lists and not hashes. As hashes lose ordering once parsed by helm
     # The default schedule is every 10 minutes: imperative.schedule

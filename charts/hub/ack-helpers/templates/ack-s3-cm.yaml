@@ -1,0 +1,74 @@
+{{- if eq .Values.global.clusterPlatform "AWS" }}
+---
+# ACM Policy to deploy ConfigMap to ack-system namespace on AWS clusters
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: ack-system-configmap-policy
+  namespace: ack-system
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+  - objectDefinition:
+      apiVersion: policy.open-cluster-management.io/v1
+      kind: ConfigurationPolicy
+      metadata:
+        name: ack-system-configmap
+      spec:
+        remediationAction: enforce
+        severity: medium
+        object-templates:
+        - complianceType: mustonlyhave
+          objectDefinition:
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: ack-s3-user-config
+              namespace: ack-system
+            data:
+              # AWS Region detected from node topology labels
+              config.txt: |
+                ACK_ENABLE_DEVELOPMENT_LOGGING=true
+                ACK_LOG_LEVEL=debug
+                ACK_WATCH_NAMESPACE=
+                AWS_REGION={{ `{{ (index (lookup "v1" "Node" "" "").items 0).metadata.labels "topology.kubernetes.io/region" | default "us-east-1" }}` }}
+                AWS_ENDPOINT_URL=
+                ACK_RESOURCE_TAGS=
+                ENABLE_LEADER_ELECTION=true
+                LEADER_ELECTION_NAMESPACE=
+                RECONCILE_DEFAULT_MAX_CONCURRENT_SYNCS=1
+                FEATURE_FLAGS=
+                FEATURE_GATES=
+---
+# PlacementBinding to ensure policy is applied only to AWS clusters
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: ack-system-configmap-placement-binding
+  namespace: ack-system
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+placementRef:
+  name: aws-managed-clusters-placement-rule
+  kind: PlacementRule
+  apiGroup: apps.open-cluster-management.io
+subjects:
+  - name: ack-system-configmap-policy
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io
+---
+# PlacementRule to target AWS clusters specifically
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: aws-managed-clusters-placement-rule
+  namespace: ack-system
+spec:
+  clusterConditions:
+    - status: 'True'
+      type: ManagedClusterConditionAvailable
+  clusterSelector:
+    matchLabels:
+      cloud: AWS
+{{- end }}
