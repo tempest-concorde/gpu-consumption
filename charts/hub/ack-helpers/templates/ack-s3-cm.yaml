@@ -15,6 +15,7 @@ spec:
       kind: ConfigurationPolicy
       metadata:
         name: ack-system-configmap
+        namespace: ack-system
       spec:
         remediationAction: enforce
         severity: medium
@@ -28,7 +29,7 @@ spec:
               namespace: ack-system
             data:
               # AWS Region detected from node topology labels
-              ACK_ENABLE_DEVELOPMENT_LOGGING: true
+              ACK_ENABLE_DEVELOPMENT_LOGGING: "true"
               ACK_LOG_LEVEL: debug
               ACK_WATCH_NAMESPACE: ""
               AWS_REGION: '{{ `{{ index (index (lookup "v1" "Node" "" "").items 0).metadata.labels "topology.kubernetes.io/region" | default "us-east-2" }}` }}'
