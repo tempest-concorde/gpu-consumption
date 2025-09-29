@@ -9,6 +9,7 @@ clusterGroup:
     - hello-world
     - ack-system
     - open-cluster-management-observability
+    - observability
   subscriptions:
     acm:
       name: advanced-cluster-management
