@@ -31,14 +31,9 @@ spec:
               ACK_ENABLE_DEVELOPMENT_LOGGING: true
               ACK_LOG_LEVEL: debug
               ACK_WATCH_NAMESPACE: ""
-              AWS_REGION: '{{ `{{ index (index (lookup "v1" "Node" "" "").items 0).metadata.labels "topology.kubernetes.io/region" | default "us-east-1" }}` }}'
-              AWS_ENDPOINT_URL: ""
-              ACK_RESOURCE_TAGS: ""
-              ENABLE_LEADER_ELECTION: true
-              LEADER_ELECTION_NAMESPACE: ""
+              AWS_REGION: '{{ `{{ index (index (lookup "v1" "Node" "" "").items 0).metadata.labels "topology.kubernetes.io/region" | default "us-east-2" }}` }}'
+              ACK_RESOURCE_TAGS: "hellofromocp"
               RECONCILE_DEFAULT_MAX_CONCURRENT_SYNCS: "1"
-              FEATURE_FLAGS: ""
-              FEATURE_GATES: ""
 ---
 # PlacementBinding to ensure policy is applied only to AWS clusters
 apiVersion: policy.open-cluster-management.io/v1
