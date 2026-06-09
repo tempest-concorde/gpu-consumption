@@ -10,3 +10,5 @@ common/pattern-vault.init
 .envrc
 openshift-install/
 .DS_Store
+.vscode/
+.claude/
